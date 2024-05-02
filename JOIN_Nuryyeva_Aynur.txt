@@ -1,0 +1,92 @@
+--1. Посчитайте общую сумму продаж в США в 1 квартале 2012 года? Решить 2-мя способами джойнами и подзапросами.
+
+SELECT sum(UnitPrice * Quantity) 
+FROM sales_items JOIN sales
+ON sales.SalesId = sales_items.SalesId
+WHERE ShipCountry = "USA" AND SalesDate >= "2012-01-01" AND SalesDate < "2012-04-01";
+
+SELECT sum(UnitPrice * Quantity)
+FROM sales_items WHERE (sales_items.SalesId IN (
+	SELECT sales.SalesId FROM sales
+	WHERE ShipCountry = "USA" AND SalesDate >= "2012-01-01" AND SalesDate < "2012-04-01" AND sales.SalesId IN (
+		SELECT sales_items.SalesId FROM sales_items
+		WHERE sales.SalesId = sales_items.SalesId 
+		)
+	)		
+);
+
+--2. Покажите имена клиентов, которых нет среди работников. Решить 3-мя способами: подзапросами, джойнами и логическим вычитанием.
+
+SELECT customers.FirstName 
+FROM customers
+WHERE(customers.FirstName NOT IN (
+	SELECT employees.FirstName FROM employees))
+GROUP BY customers.FirstName;
+
+SELECT customers.FirstName 
+FROM customers LEFT JOIN employees ON customers.FirstName = employees.FirstName
+WHERE employees.FirstName IS NULL
+GROUP BY customers.FirstName;  
+
+SELECT c.FirstName 
+FROM customers c
+EXCEPT
+SELECT e.FirstName
+FROM employees e;
+
+--3. Вернут ли данные запросы одинаковый результат? Да или НЕТ. Объяснить почему. Какой запрос вернет больше строк ?
+
+Нет. Потому что во втором при LEFT JOIN возвращается строка, даже если логическое условие после ON не выполняется (заполяет с NULL, если что-то не нашлось). А в первом WHERE сработает и получится меньше строк. Больше строк будет у второго.
+
+--4. Посчитайте количество треков в каждом альбоме. В результате должно быть: имя альбома и кол-во треков. Решить 2-мя способами: подзапросом и джойнами.
+
+SELECT a.Title, (SELECT COUNT(*) 
+	FROM tracks t
+	WHERE t.AlbumId = a.AlbumId) AS CountOfTrack
+FROM albums a;
+
+SELECT a.Title, COUNT(*) AS CountOfTrack
+FROM albums a JOIN tracks t ON a.AlbumId = t.AlbumId
+GROUP BY a.Title;
+
+--5. Покажите фамилию и имя покупателей немцев сделавших заказы в 2009 году, товары которых были отгружены в город Берлин.
+
+SELECT FirstName, LastName 
+FROM customers c 
+WHERE Country = "Germany" AND c.CustomerId IN (
+	SELECT s.CustomerId 
+	FROM sales s
+	WHERE date(s.SalesDate) > DATE('2009-01-01') AND DATE(s.SalesDate) < DATE('2009-12-31') AND s.ShipCity = "Berlin"
+	); 
+
+--6. Покажите фамилии клиентов которые купили больше 30 музыкальных треков. Решить задачу 2-мя способами: джойнами и подзапросами.
+
+SELECT LastName
+FROM customers c, sales s, sales_items s_i
+WHERE c.CustomerId = s.CustomerId and s.SalesId = s_i.SalesId
+GROUP BY c.CustomerId
+HAVING SUM(s_i.Quantity) > 30;
+
+SELECT LastName
+FROM customers
+WHERE customerId IN (
+    SELECT c.customerId
+    FROM customers c
+    JOIN sales s ON c.customerId = s.customerId
+    JOIN sales_items si ON s.SalesId = si.SalesId
+    GROUP BY c.customerId
+    HAVING COUNT(si.Quantity) > 30
+);
+
+--7. В базе есть таблица музыкальных треков и жанров. Какова средняя стоимость музыкального трека в каждом жанре?
+
+SELECT g.Name, AVG(t.UnitPrice) AS AveragePrice
+FROM genres g JOIN tracks t ON t.GenreId =  g.GenreId 
+GROUP BY g.Name; 
+
+--8. В базе есть таблица музыкальных треков и жанров. Покажите жанры, у которых средняя стоимость одного трека больше 1-го.
+
+SELECT g.Name, AVG(t.UnitPrice) AS AveragePrice
+FROM genres g JOIN tracks t ON t.GenreId = g.GenreId 
+GROUP BY g.Name
+HAVING AveragePrice > 1; 
