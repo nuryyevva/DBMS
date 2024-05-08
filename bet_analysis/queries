@@ -1,0 +1,60 @@
+-- Сколько раз человеку надо прийти, чтобы сделать ставку?
+/*SELECT user_id, COUNT(DISTINCT time) AS logins_to_bet
+FROM LOG
+WHERE bet != ""
+GROUP BY user_id*/
+
+-- Каков средний выигрыш в процентах?
+/*SELECT AVG(avg_percentage_gain) AS overall_avg_percentage_gain
+FROM (
+    SELECT user_id, AVG((win - bet) / bet * 100) AS avg_percentage_gain
+    FROM LOG
+    GROUP BY user_id
+) AS user_avg_gains;*/
+
+-- Каков баланс по каждому пользователю?
+/*SELECT user_id, SUM(win - bet) AS balance
+FROM LOG
+GROUP BY user_id;*/
+
+-- Какие города самые выгодные?
+/*SELECT
+    u.geo AS city,
+    SUM(l.win) AS total_win_amount
+FROM
+    LOG l
+JOIN
+    USERS u ON l.user_id = u.user_id
+GROUP BY
+    u.geo
+ORDER BY
+    total_win_amount DESC;*/
+    
+-- В каких городах самая высокая ставка?
+/*SELECT
+    u.geo AS city,
+    SUM(l.bet) AS total_bet_amount
+FROM
+    LOG l
+JOIN
+    USERS u ON l.user_id = u.user_id
+GROUP BY
+    u.geo
+ORDER BY
+    total_bet_amount DESC;*/
+
+-- Сколько в среднем времени проходит от первого посещения сайта до первой попытки?
+WITH first_visit AS (
+    SELECT user_id, MIN(time) AS first_visit_time
+    FROM LOG
+    GROUP BY user_id
+),
+first_bet AS (
+    SELECT user_id, MIN(time) AS first_bet_time
+    FROM LOG
+    WHERE bet != ""
+    GROUP BY user_id
+)
+SELECT AVG(julianday(fb.first_bet_time) - julianday(fv.first_visit_time)) AS avg_time_to_bet
+FROM first_visit fv
+LEFT JOIN first_bet fb ON fv.user_id = fb.user_id
